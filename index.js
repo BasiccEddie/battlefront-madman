@@ -1,3 +1,11 @@
+console.log("🚀 Bot file loaded");
+console.log("ENV check:", {
+  DISCORD_BOT_TOKEN: !!process.env.DISCORD_BOT_TOKEN,
+  GUILD_ID: !!process.env.GUILD_ID,
+  CATEGORY_ID: !!process.env.CATEGORY_ID,
+  BATTLEMETRICS_SERVER_ID: !!process.env.BATTLEMETRICS_SERVER_ID,
+  BATTLEMETRICS_API_TOKEN: !!process.env.BATTLEMETRICS_API_TOKEN,
+});
 require("dotenv").config();
 
 const { Client, GatewayIntentBits, ChannelType } = require("discord.js");
