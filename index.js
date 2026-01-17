@@ -111,7 +111,7 @@ result      : Warned`
 }
 
 // --------------------------
-// Server online / offline check (TEXT CHANNEL)
+// Server online / offline check (VOICE CHANNEL)
 // --------------------------
 async function checkServerStatus() {
   try {
@@ -137,12 +137,12 @@ async function checkServerStatus() {
         ? '🟢 SERVER ONLINE'
         : '🔴 SERVER OFFLINE';
 
-    // Force rename even if name is the same
+    // Force rename every poll
     try {
       await channel.setName(newName);
       console.log(`Server status forced rename → ${newName}`);
     } catch (err) {
-      console.error('Failed to rename status channel:', err);
+      console.error('Failed to rename status voice channel:', err);
     }
 
     lastServerStatus = currentStatus;
