@@ -111,18 +111,11 @@ result      : Warned`
 }
 
 // --------------------------
-// Server online / offline check (FORCED RENAME)
+// Server online / offline check (TEXT CHANNEL)
 // --------------------------
 async function checkServerStatus() {
   try {
-    const res = await axios.get(
-      `https://api.battlemetrics.com/servers/${process.env.BATTLEMETRICS_SERVER_ID}`,
-      { headers: { Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}` } }
-    );
-
-    const currentStatus = res.data.data.attributes.status;
-
-    const channel = await client.channels.fetch(process.env.CATEGORY_ID);
+    const channel = await client.channels.fetch(process.env.STATUS_CHANNEL_ID);
     if (!channel) {
       console.error('Status channel not found!');
       return;
@@ -131,18 +124,25 @@ async function checkServerStatus() {
     // Debug info
     console.log('Status channel type:', channel.type, 'current name:', channel.name);
 
+    const res = await axios.get(
+      `https://api.battlemetrics.com/servers/${process.env.BATTLEMETRICS_SERVER_ID}`,
+      { headers: { Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}` } }
+    );
+
+    const currentStatus = res.data.data.attributes.status;
+
     // Decide new name
     const newName =
       currentStatus === 'online'
         ? '🟢 SERVER ONLINE'
         : '🔴 SERVER OFFLINE';
 
-    // Force rename even if current name is the same
+    // Force rename even if name is the same
     try {
       await channel.setName(newName);
       console.log(`Server status forced rename → ${newName}`);
     } catch (err) {
-      console.error('Failed to rename status category:', err);
+      console.error('Failed to rename status channel:', err);
     }
 
     lastServerStatus = currentStatus;
@@ -155,8 +155,8 @@ async function checkServerStatus() {
 // --------------------------
 // Intervals
 // --------------------------
-setInterval(fetchBanLogs, 10 * 60 * 1000);   // every 10 min
-setInterval(checkServerStatus, 3 * 60 * 1000); // every 3 min
+setInterval(fetchBanLogs, 10 * 60 * 1000);       // every 10 min
+setInterval(checkServerStatus, 3 * 60 * 1000);   // every 3 min
 
 // --------------------------
 // Login
