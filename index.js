@@ -9,7 +9,7 @@ dotenv.config();
 // --------------------------
 const express = require('express');
 const axios = require('axios');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 
 // --------------------------
 // Express keep-alive
@@ -29,15 +29,10 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
-});
-
 // --------------------------
 // Internal state
 // --------------------------
 let lastProcessedBanId = null;
-let lastServerStatus = null;
 
 // --------------------------
 // Resolve forum tags from reason
@@ -111,52 +106,62 @@ result      : Warned`
 }
 
 // --------------------------
-// Server online / offline check (VOICE CHANNEL)
+// Fetch server status
 // --------------------------
-async function checkServerStatus() {
+async function getServerStatus() {
   try {
-    const channel = await client.channels.fetch(process.env.STATUS_CHANNEL_ID);
-    if (!channel) {
-      console.error('Status channel not found!');
-      return;
-    }
-
-    // Debug info
-    console.log('Status channel type:', channel.type, 'current name:', channel.name);
-
     const res = await axios.get(
       `https://api.battlemetrics.com/servers/${process.env.BATTLEMETRICS_SERVER_ID}`,
       { headers: { Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}` } }
     );
-
-    const currentStatus = res.data.data.attributes.status;
-
-    // Decide new name
-    const newName =
-      currentStatus === 'online'
-        ? '🟢 SERVER ONLINE'
-        : '🔴 SERVER OFFLINE';
-
-    // Force rename every poll
-    try {
-      await channel.setName(newName);
-      console.log(`Server status forced rename → ${newName}`);
-    } catch (err) {
-      console.error('Failed to rename status voice channel:', err);
-    }
-
-    lastServerStatus = currentStatus;
-
+    return res.data.data.attributes.status; // "online" or "offline"
   } catch (err) {
-    console.error('Server status check failed:', err.response?.data || err.message);
+    console.error('Failed to fetch server status:', err.response?.data || err.message);
+    return 'offline'; // fallback
   }
 }
 
 // --------------------------
-// Intervals
+// Register slash commands
 // --------------------------
-setInterval(fetchBanLogs, 10 * 60 * 1000);       // every 10 min
-setInterval(checkServerStatus, 3 * 60 * 1000);   // every 3 min
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+
+  const commands = [
+    new SlashCommandBuilder()
+      .setName('server')
+      .setDescription('Check if the server is online or offline')
+      .toJSON()
+  ];
+
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
+  await rest.put(Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID), { body: commands });
+  console.log('Registered /server command');
+});
+
+// --------------------------
+// Handle slash commands
+// --------------------------
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'server') {
+    await interaction.deferReply();
+
+    const status = await getServerStatus();
+    const response =
+      status === 'online'
+        ? '🟢 Server is online'
+        : '🔴 Server is offline';
+
+    await interaction.editReply(response);
+  }
+});
+
+// --------------------------
+// Poll ban logs periodically
+// --------------------------
+setInterval(fetchBanLogs, 10 * 60 * 1000); // every 10 min
 
 // --------------------------
 // Login
