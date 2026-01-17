@@ -9,10 +9,7 @@ dotenv.config();
 // --------------------------
 const express = require('express');
 const axios = require('axios');
-const {
-  Client,
-  GatewayIntentBits
-} = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 // --------------------------
 // Express keep-alive
@@ -68,11 +65,7 @@ async function fetchBanLogs() {
   try {
     const res = await axios.get(
       `https://api.battlemetrics.com/servers/${process.env.BATTLEMETRICS_SERVER_ID}/bans`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}`
-        }
-      }
+      { headers: { Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}` } }
     );
 
     const bans = res.data.data;
@@ -80,9 +73,7 @@ async function fetchBanLogs() {
 
     bans.reverse(); // oldest → newest
 
-    const forum = await client.channels.fetch(
-      process.env.BANLOG_CHANNEL_ID
-    );
+    const forum = await client.channels.fetch(process.env.BANLOG_CHANNEL_ID);
     if (!forum) return;
 
     for (const ban of bans) {
@@ -91,8 +82,7 @@ async function fetchBanLogs() {
       const attr = ban.attributes;
       const playerName = attr.player?.name || 'Unknown';
       const reason = attr.reason || 'No reason provided';
-      const playerId =
-        ban.relationships?.player?.data?.id || 'Unknown';
+      const playerId = ban.relationships?.player?.data?.id || 'Unknown';
       const time = new Date(attr.timestamp).toLocaleString('sv-SE');
 
       const appliedTags = resolveTags(reason);
@@ -116,59 +106,49 @@ result      : Warned`
     }
 
   } catch (err) {
-    console.error(
-      'Banlog fetch failed:',
-      err.response?.data || err.message
-    );
+    console.error('Banlog fetch failed:', err.response?.data || err.message);
   }
 }
 
 // --------------------------
-// Server online / offline check
-// CATEGORY_ID = category or channel ID
+// Server online / offline check (FORCED RENAME)
 // --------------------------
 async function checkServerStatus() {
   try {
     const res = await axios.get(
       `https://api.battlemetrics.com/servers/${process.env.BATTLEMETRICS_SERVER_ID}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}`
-        }
-      }
+      { headers: { Authorization: `Bearer ${process.env.BATTLEMETRICS_API_TOKEN}` } }
     );
 
     const currentStatus = res.data.data.attributes.status;
 
-    if (!lastServerStatus) {
-      lastServerStatus = currentStatus;
+    const channel = await client.channels.fetch(process.env.CATEGORY_ID);
+    if (!channel) {
+      console.error('Status channel not found!');
       return;
     }
 
-    if (currentStatus === lastServerStatus) return;
+    // Debug info
+    console.log('Status channel type:', channel.type, 'current name:', channel.name);
 
-    const channel = await client.channels.fetch(
-      process.env.CATEGORY_ID
-    );
-    if (!channel) return;
-
+    // Decide new name
     const newName =
       currentStatus === 'online'
         ? '🟢 SERVER ONLINE'
         : '🔴 SERVER OFFLINE';
 
-    if (channel.name !== newName) {
+    // Force rename even if current name is the same
+    try {
       await channel.setName(newName);
-      console.log(`Server status → ${newName}`);
+      console.log(`Server status forced rename → ${newName}`);
+    } catch (err) {
+      console.error('Failed to rename status category:', err);
     }
 
     lastServerStatus = currentStatus;
 
   } catch (err) {
-    console.error(
-      'Server status check failed:',
-      err.response?.data || err.message
-    );
+    console.error('Server status check failed:', err.response?.data || err.message);
   }
 }
 
